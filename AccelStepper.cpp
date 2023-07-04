@@ -75,7 +75,7 @@ boolean AccelStepper::runSpeedWithAccel()
     if (!_stepInterval)
         return false;
         // calculate new Speed
-        computeNewSpeedForConstantSpeed();
+    computeNewSpeedForConstantSpeed();
     unsigned long time = micros();
 
     if (time - _lastStepTime >= _stepInterval)
@@ -131,12 +131,16 @@ void AccelStepper::computeNewSpeedForConstantSpeed()
 {
     unsigned long time = micros();
     unsigned long delta = time - mLastSpeedTime;
-    if (abs(abs(speed())-acceleration()* (((double)delta) / 1000000.0))<2)
+    if (abs(_speed*acceleration()*delta/1000000.0 - mExpectedSpeed)<5)
     {
-        if (abs(mExpectedSpeed)<2 )
-        setSpeed(0);
-        return;
+        setSpeed(mExpectedSpeed);
     }
+    else
+    if (abs(_speed-mExpectedSpeed) <2)
+    {
+        setSpeed(mExpectedSpeed);  
+    }
+    else
     if (speed() < mExpectedSpeed)
     {
         setSpeed(speed() + acceleration()

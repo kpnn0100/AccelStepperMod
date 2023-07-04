@@ -738,6 +738,8 @@ private:
     /// Min step size in microseconds based on maxSpeed
     float _cmin; // at max speed
 
+    
+
 };
 
 /// @example Random.pde
