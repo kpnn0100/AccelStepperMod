@@ -72,7 +72,7 @@ boolean AccelStepper::runSpeed()
 boolean AccelStepper::runSpeedWithAccel()
 {
     // Dont do anything unless we actually have a step interval
-    
+
     if (runSpeed())
     {
         computeNewSpeedForConstantSpeed();
@@ -95,82 +95,55 @@ void AccelStepper::setExpectedSpeed(long expectedSpeed)
     {
         mExpectedStepInterval = fabs(1000000.0 / expectedSpeed);
     }
-    if (!_stepInterval)
-    {
-        setSpeed(1);
-    }
     mExpectedSpeed = expectedSpeed;
-    _cexpected = 1000000/mExpectedSpeed;
-   computeNewSpeedForConstantSpeed();
+    _cexpected = 1000000 / abs(mExpectedSpeed);
+    mSpeedcounter = false;
+    computeNewSpeedForConstantSpeed();
 }
 
 void AccelStepper::computeNewSpeedForConstantSpeed()
 {
-    long speedDelta = mExpectedSpeed - _speed; //positive is we are slower than expected in vector
-
-    if (abs(speedDelta) <0.1)
+    if (!mSpeedcounter)
     {
-        // We reach the speed needed, stop accelerating
-        _n = 0;
-        return;
+        mLastSpeedTime = micros();
+        mStartSpeed = _speed;
+        if (_speed < 2.0 && _speed > -2.0)
+        {
+            float firstSpeed = 1000000 / _c0;
+            mStartSpeed = firstSpeed * (mExpectedSpeed / abs(mExpectedSpeed));
+            setSpeed(mStartSpeed);
+            mSpeedcounter = true;
+            return;
+        }
+        mSpeedcounter = true;
     }
-    //---me>>> ---->>expected
-    //----->>expected ---->>me
-
-    //  <<me----0------------>expected
-    //  <<me--------------0-->expected
-    
-    // reverse, sum 8 cases
-    //WRONG WAY
-    if (mExpectedSpeed*_speed <0)
-    {
-        _n = -abs(_n);
-    }
-    //Right way
     else
     {
-        //but slower than expected
-        if (speedDelta>0)
+        if (mStartSpeed < mExpectedSpeed)
         {
-            _n = abs(_n);
+            float newSpeed = mStartSpeed + (micros() - mLastSpeedTime) * _acceleration / 1000000.0;
+            if (newSpeed < mExpectedSpeed)
+            {
+                setSpeed(newSpeed);
+            }
+            else
+            {
+                setSpeed(mExpectedSpeed);
+            }
         }
-        //faster than expected
         else
         {
-            _n = -abs(_n);
+            float newSpeed = mStartSpeed - (micros() - mLastSpeedTime) * _acceleration / 1000000.0;
+            if (newSpeed > mExpectedSpeed)
+            {
+                setSpeed(newSpeed);
+            }
+            else
+            {
+                setSpeed(mExpectedSpeed);
+            }
         }
     }
-    // Need to accelerate or decelerate
-    if (_n == 0)
-    {
-        // First step from accelarate
-        _cn = _c0;
-        _direction = (mExpectedSpeed > 0) ? DIRECTION_CW : DIRECTION_CCW;
-    }
-    else
-    {
-        // Subsequent step. Works for accel (n is +_ve) and decel (n is -ve).
-        _cn = _cn - ((2.0 * _cn) / ((4.0 * _n) + 1)); // Equation 13
-        _cn = max(_cn, _cexpected);
-    }
-    _n++;
-    _stepInterval = _cn;
-    _speed = 1000000.0 / _cn;
-    if (_direction == DIRECTION_CCW)
-        _speed = -_speed;
-
-#if 0
-    Serial.println(_speed);
-    Serial.println(_acceleration);
-    Serial.println(_cn);
-    Serial.println(_c0);
-    Serial.println(_n);
-    Serial.println(_stepInterval);
-    Serial.println(distanceTo);
-    Serial.println(stepsToStop);
-    Serial.println("-----");
-#endif
-    return _stepInterval;
 }
 
 long AccelStepper::distanceToGo()
@@ -399,7 +372,9 @@ void AccelStepper::setAcceleration(float acceleration)
         // New c0 per Equation 7, with correction per Equation 15
         _c0 = 0.676 * sqrt(2.0 / acceleration) * 1000000.0; // Equation 15
         _acceleration = acceleration;
+        mSpeedcounter = false;
         computeNewSpeed();
+        computeNewSpeedForConstantSpeed();
     }
 }
 

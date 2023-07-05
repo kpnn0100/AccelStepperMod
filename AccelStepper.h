@@ -705,6 +705,8 @@ private:
     /// The last step time in microseconds
     unsigned long  _lastStepTime;
     unsigned long  mLastSpeedTime;
+    bool mSpeedcounter;
+    float mStartSpeed;
     /// The minimum allowed pulse width in microseconds
     unsigned int   _minPulseWidth;
 
