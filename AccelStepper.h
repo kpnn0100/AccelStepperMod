@@ -271,11 +271,13 @@
 #define AccelStepper_h
 
 #include <stdlib.h>
+#include "CircularList.h"
 #if ARDUINO >= 100
 #include <Arduino.h>
 #else
 #include <WProgram.h>
 #include <wiring.h>
+
 #endif
 
 // These defs cause trouble on some versions of Arduino
@@ -692,10 +694,10 @@ private:
 
     /// The current motos speed in steps per second
     /// Positive is clockwise
-    float          _speed;         // Steps per second
+    double          _speed;         // Steps per second
 
     /// The maximum permitted speed in steps per second. Must be > 0.
-    float          _maxSpeed;
+    double          _maxSpeed;
     float mExpectedSpeed;
     /// The acceleration to use to accelerate or decelerate the motor in steps
     /// per second per second. Must be > 0
@@ -709,7 +711,7 @@ private:
     float mStartSpeed;
     /// The minimum allowed pulse width in microseconds
     unsigned int   _minPulseWidth;
-
+    
     /// Is the direction pin inverted?
     ///bool           _dirInverted; /// Moved to _pinInverted[1]
 
@@ -732,17 +734,19 @@ private:
     long _n;
 
     /// Initial step size in microseconds
-    float _c0;
+    double _c0;
 
     /// Last step size in microseconds
-    float _cn;
+    double _cn;
 
+    double _outputcn;
     /// Min step size in microseconds based on maxSpeed
-    float _cmin; // at max speed
-    
+    double _cmin; // at max speed
+    double averageSum = 0;
+    int windowSize = 1;
+    CircularList<double> _lastcn;
     //step for expected speed
-    float _cexpected;
-
+    double _cexpected;
 };
 
 /// @example Random.pde

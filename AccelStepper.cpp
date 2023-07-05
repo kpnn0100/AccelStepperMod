@@ -96,7 +96,15 @@ void AccelStepper::setExpectedSpeed(long expectedSpeed)
         mExpectedStepInterval = fabs(1000000.0 / expectedSpeed);
     }
     mExpectedSpeed = expectedSpeed;
-    _cexpected = 1000000 / abs(mExpectedSpeed);
+    if (mExpectedSpeed>0)
+    {
+        _cexpected = 1000000.0 / mExpectedSpeed;
+    }
+    else
+    {
+        _cexpected = -1000000.0 / mExpectedSpeed;
+    }
+   
     mSpeedcounter = false;
     computeNewSpeedForConstantSpeed();
 }
@@ -130,6 +138,7 @@ void AccelStepper::computeNewSpeedForConstantSpeed()
         if (abs(_n)<=1)
         {
             // Serial.print("stopped");
+
             _n = 0;
         }
     }
@@ -157,18 +166,39 @@ void AccelStepper::computeNewSpeedForConstantSpeed()
         // First step from accelarate
         _cn = _c0;
         _direction = (mExpectedSpeed > 0) ? DIRECTION_CW : DIRECTION_CCW;
+        if (_cn < _cexpected)
+            _cn = _cexpected;
     }
     else
     {
         // Subsequent step. Works for accel (n is +_ve) and decel (n is -ve).
         
         _cn = _cn - ((2.0 * _cn) / ((4.0 * _n) + 1)); // Equation 13
-        if (abs(_cn - _cexpected) < 0.0001)
-            _cn = _cexpected;
+        //same direction
+        if (_speed*mExpectedSpeed>0)
+        {
+            //currently speed up
+            if (_n > 0)
+            {
+                //and pass needed with same direction
+                if (_cn < _cexpected)
+                    _cn = _cexpected;
+            }
+            //currently slow down;
+            else
+            {
+                //and slow to needed
+                if (_cn > _cexpected)
+                    _cn = _cexpected;
+            }
+        }
+
     }
     _n++;
-    _stepInterval = _cn;
-    _speed = 1000000.0 / _cn;
+
+    averageSum = _cn;
+    _stepInterval = (unsigned long) averageSum;
+    _speed = 1000000.0 / averageSum;
     if (_direction == DIRECTION_CCW)
         _speed = -_speed;
 
@@ -312,6 +342,7 @@ AccelStepper::AccelStepper(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_
     _pin[2] = pin3;
     _pin[3] = pin4;
     _enableInverted = false;
+    _lastcn = CircularList<double>(windowSize,_c0);
 
     // NEW
     _n = 0;
