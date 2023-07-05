@@ -103,47 +103,75 @@ void AccelStepper::setExpectedSpeed(long expectedSpeed)
 
 void AccelStepper::computeNewSpeedForConstantSpeed()
 {
-    if (!mSpeedcounter)
+    long speedDelta = mExpectedSpeed - _speed; //positive is we are slower than expected in vector
+    long stepsToStop = (long)((_speed * _speed) / (2.0 * _acceleration));
+    if (abs(speedDelta) <0.0002)
     {
-        mLastSpeedTime = micros();
-        mStartSpeed = _speed;
-        if (_speed < 2.0 && _speed > -2.0)
+        // We reach the speed needed, stop accelerating
+        return;
+    }
+    //---me>>> ---->>expected
+    //----->>expected ---->>me
+
+    //  <<me----0------------>expected
+    //  <<me--------------0-->expected
+    
+    // reverse, sum 8 cases
+
+    //WRONG WAY or expected to Stop
+    if (mExpectedSpeed*_speed <0 || mExpectedSpeed == 0.0)
+    {
+        //need to stop and change dir
+
+        _n = -stepsToStop;
+        // Serial.print("stopping with _n: ");
+        //         Serial.println(_n);
+        //going wrong way and it time to stop
+        if (abs(_n)<=1)
         {
-            float firstSpeed = 1000000 / _c0;
-            mStartSpeed = firstSpeed * (mExpectedSpeed / abs(mExpectedSpeed));
-            setSpeed(mStartSpeed);
-            mSpeedcounter = true;
-            return;
+            // Serial.print("stopped");
+            _n = 0;
         }
-        mSpeedcounter = true;
+    }
+    //Right way
+    else
+    {
+        // //but slower than expected
+        // if (_speed <0 && _n>0 && _n <1000)
+        // {
+        //     Serial.println(_n);
+        // }
+        if (abs(_speed)<abs(mExpectedSpeed))
+        {
+            _n = abs(_n);
+        }
+        //faster than expected
+        else
+        {
+            _n = -abs(_n);
+        }
+    }
+    // Need to accelerate or decelerate
+    if (_n == 0)
+    {
+        // First step from accelarate
+        _cn = _c0;
+        _direction = (mExpectedSpeed > 0) ? DIRECTION_CW : DIRECTION_CCW;
     }
     else
     {
-        if (mStartSpeed < mExpectedSpeed)
-        {
-            float newSpeed = mStartSpeed + (micros() - mLastSpeedTime) * _acceleration / 1000000.0;
-            if (newSpeed < mExpectedSpeed)
-            {
-                setSpeed(newSpeed);
-            }
-            else
-            {
-                setSpeed(mExpectedSpeed);
-            }
-        }
-        else
-        {
-            float newSpeed = mStartSpeed - (micros() - mLastSpeedTime) * _acceleration / 1000000.0;
-            if (newSpeed > mExpectedSpeed)
-            {
-                setSpeed(newSpeed);
-            }
-            else
-            {
-                setSpeed(mExpectedSpeed);
-            }
-        }
+        // Subsequent step. Works for accel (n is +_ve) and decel (n is -ve).
+        
+        _cn = _cn - ((2.0 * _cn) / ((4.0 * _n) + 1)); // Equation 13
+        if (abs(_cn - _cexpected) < 0.0001)
+            _cn = _cexpected;
     }
+    _n++;
+    _stepInterval = _cn;
+    _speed = 1000000.0 / _cn;
+    if (_direction == DIRECTION_CCW)
+        _speed = -_speed;
+
 }
 
 long AccelStepper::distanceToGo()
